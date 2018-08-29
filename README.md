@@ -178,8 +178,8 @@ SqlSession session = sqlMapper.openSession();
 创建SqlSessionFactory简单流程描述如下：
 1. 调用SqlSessionFactoryBuilder读取配置文件
 2. SqlSessionFactoryBuilder委托XMLConfigBuilder
-3. XMLConfigBuilder委托XPathParser（JDK的XPath解析）去解析加载配置文件
-4. 所有的配置信息被加载到Configuration中
+3. XMLConfigBuilder委托XPathParser（封装的JDK自带的XPath解析XML）去解析加载配置文件
+4. 所有的配置信息被加载到Configuration中（几乎后续的所有操作都会与此配置对象打交道）
 5. SqlSessionFactoryBuilder调用build方法，创建并将之前创建configuration交给DefaultSqlSessionFactory实例
 
-
+### 
