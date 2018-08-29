@@ -129,28 +129,50 @@ SqlSession session = sqlMapper.openSession();
   private void parseConfiguration(XNode root) {
     try {
       //issue #117 read properties first
-      //
+      //加载config.xml中的所有properties，并将值设置到parser
       propertiesElement(root.evalNode("properties"));
+     
       Properties settings = settingsAsProperties(root.evalNode("settings"));
       loadCustomVfs(settings);
+      
+      //加载类型别名
       typeAliasesElement(root.evalNode("typeAliases"));
+      
+      //加载插件
       pluginElement(root.evalNode("plugins"));
+      
+      //加载对象工厂
       objectFactoryElement(root.evalNode("objectFactory"));
+      
+      //加载包装对象工厂
       objectWrapperFactoryElement(root.evalNode("objectWrapperFactory"));
+      
+      //
       reflectorFactoryElement(root.evalNode("reflectorFactory"));
+      
+      //加载所有的setting
       settingsElement(settings);
+      
       // read it after objectFactory and objectWrapperFactory issue #631
+      //环境
       environmentsElement(root.evalNode("environments"));
+      
+      //databaseIdProvider
       databaseIdProviderElement(root.evalNode("databaseIdProvider"));
+      
+      //类型处理器
       typeHandlerElement(root.evalNode("typeHandlers"));
+      
+      //映射器
       mapperElement(root.evalNode("mappers"));
     } catch (Exception e) {
       throw new BuilderException("Error parsing SQL Mapper Configuration. Cause: " + e, e);
     }
   }
   
-  //
-  
-  
+  //将Configuration传递给DefaultSqlSessionFactory，构建SqlSessionFactory
+  public SqlSessionFactory build(Configuration config) {
+    return new DefaultSqlSessionFactory(config);
+  }
 ```
 
