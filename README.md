@@ -372,5 +372,6 @@ public class DefaultSqlSession implements SqlSession {
     statement.execute(sql);
     return resultSetHandler.<E>handleResultSets(statement);
   }
- 
 ```
+
+### Mybatis拦截器链模式的实现
