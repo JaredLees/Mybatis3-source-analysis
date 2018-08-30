@@ -182,4 +182,64 @@ SqlSession session = sqlMapper.openSession();
 4. 所有的配置信息被加载到Configuration中（几乎后续的所有操作都会与此配置对象打交道）
 5. SqlSessionFactoryBuilder调用build方法，创建并将之前创建configuration交给DefaultSqlSessionFactory实例
 
-### 
+- 获取SqlSession
+> SqlSessionFactory创建完成后，接下来是对sql执行器的构建，每次执行 openSession() 都会默认创建一个DefaultSqlSession对象(封装了执行器，configuration）
+```java
+  public SqlSession openSession() {
+    //默认的ExecutorType = SIMPLE
+    return openSessionFromDataSource(configuration.getDefaultExecutorType(), null, false);
+  }
+
+ private SqlSession openSessionFromDataSource(ExecutorType execType, TransactionIsolationLevel level, boolean autoCommit) {
+    Transaction tx = null;
+    try {
+      //从configuration中拉取环境（开发环境|生产环境）
+      final Environment environment = configuration.getEnvironment();
+      
+      //环境中封装了事务工厂和datasource信息 
+      final TransactionFactory transactionFactory = getTransactionFactoryFromEnvironment(environment);
+      
+      //获取事务工厂，创建当前事务
+      tx = transactionFactory.newTransaction(environment.getDataSource(), level, autoCommit);
+      
+      //获取事务和执行器类型，创建执行器（未指定执行器类型，默认为SIMPLE）
+      final Executor executor = configuration.newExecutor(tx, execType);
+      
+      //将执行器，configuration封装到DefaultSqlSession
+      return new DefaultSqlSession(configuration, executor, autoCommit);
+    } catch (Exception e) {
+      closeTransaction(tx); // may have fetched a connection so lets call close()
+      throw ExceptionFactory.wrapException("Error opening session.  Cause: " + e, e);
+    } finally {
+      ErrorContext.instance().reset();
+    }
+  }
+  
+   //产生执行器
+  public Executor newExecutor(Transaction transaction, ExecutorType executorType) {
+    executorType = executorType == null ? defaultExecutorType : executorType;
+    //这句再做一下保护,囧,防止粗心大意的人将defaultExecutorType设成null?
+    executorType = executorType == null ? ExecutorType.SIMPLE : executorType;
+    Executor executor;
+    //然后就是简单的3个分支，产生3种执行器BatchExecutor/ReuseExecutor/SimpleExecutor
+    if (ExecutorType.BATCH == executorType) {
+      executor = new BatchExecutor(this, transaction);
+    } else if (ExecutorType.REUSE == executorType) {
+      executor = new ReuseExecutor(this, transaction);
+    } else {
+      executor = new SimpleExecutor(this, transaction);
+    }
+    //如果要求缓存，生成另一种CachingExecutor(默认就是有缓存),装饰者模式,所以默认都是返回CachingExecutor
+    if (cacheEnabled) {
+      executor = new CachingExecutor(executor);
+    }
+    //此处调用插件,通过插件可以改变Executor行为
+    executor = (Executor) interceptorChain.pluginAll(executor);
+    return executor;
+  }
+```
+获取SqlSession的简单流程描述如下：
+1. SqlSession的创建会调用DefaultSqlSessionFactory的openSessionFromDataSource方法
+2. 根据configuration中指定的环境信息获取事务工厂创建事务，获取datasource
+3. 根据事务和datasource创建执行器（默认SIMPLE），此处会根据是否开启缓存进行CachingExecutor包装，将所有拦截器链中的对象注册executor
+4. 包装configuration和executor到DefaultSqlSession返回
